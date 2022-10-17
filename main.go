@@ -5,13 +5,18 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/caarlos0/env/v6"
 	"github.com/go-chi/chi/v5"
 )
 
+type config struct {
+	StoragePath string `env:"STORAGE_PATH"`
+	Port        string `env:"PORT"`
+}
+
 type load struct {
-	Key   string
-	Value string
-	// Value interface{}
+	Key   string                 `json:"key"`
+	Value map[string]interface{} `json:"value"`
 }
 
 func getValue(w http.ResponseWriter, r *http.Request, db Storage) {
@@ -21,7 +26,6 @@ func getValue(w http.ResponseWriter, r *http.Request, db Storage) {
 	w.Header().Set("Content-Type", "application/json")
 	if err == nil {
 		if wasFound {
-			// json.NewEncoder(w).Encode(value)
 			w.Write(value)
 		} else {
 			http.Error(w, "Key not found.", http.StatusNotFound)
@@ -40,7 +44,14 @@ func createValue(w http.ResponseWriter, r *http.Request, db Storage) {
 		return
 	}
 
-	err = db.Set([]byte(input.Key), []byte(input.Value))
+	byteValue, err := json.Marshal(input.Value)
+
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	err = db.Set([]byte(input.Key), byteValue)
 
 	if err != nil {
 		http.Error(w, "Oops something went wrong.", http.StatusInternalServerError)
@@ -61,9 +72,13 @@ func startServer(s Storage, port string) {
 }
 
 func main() {
-	port := "8080"
-	storage := NewPebbleStorage("keys")
+	cfg := config{}
+	if err := env.Parse(&cfg); err != nil {
+		panic(err)
+	}
 
-	startServer(storage, port)
+	storage := NewPebbleStorage(cfg.StoragePath)
+
+	startServer(storage, cfg.Port)
 	storage.Close()
 }
