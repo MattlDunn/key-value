@@ -1,0 +1,14 @@
+version: "3.9"
+services:
+  db:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - data:/var/kv-db
+    environment:
+      PORT: "8080"
+      STORAGE_PATH: "/var/kv-db"
+
+volumes:
+  data: {}
